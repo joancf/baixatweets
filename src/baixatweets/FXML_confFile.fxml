@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<AnchorPane id="AnchorPane" prefHeight="490.0" prefWidth="875.0" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/8" fx:controller="baixatweets.FXML_confFileController">
+   <children>
+      <Label layoutX="88.0" layoutY="66.0" text="OAuthConsumerKey" />
+      <Label layoutX="68.0" layoutY="102.0" text="OAuthConsumerSecret" />
+      <Label layoutX="91.0" layoutY="139.0" text="OAuthAccessToken" />
+      <Label layoutX="50.0" layoutY="177.0" text="OAuthAccessTokenSecret" />
+      <TextArea layoutX="230.0" layoutY="218.0" prefHeight="200.0" prefWidth="573.0" text="1. Entra al teu compte de Twitter (si no, l'has de crear) &#10;2. Ves a https://apps.twitter.com/ &#10;3. Fes &quot;new app&quot; &#10;   - Posa el nom &quot;twijava&quot; a l'aplicació,  &#10;   - una descripció,  &#10;   - a website posa  http://www.tecnocampus.cat  &#10;   - marca que estàs d'acord amb les condicions  &#10;    - i fes  &quot;create your application&quot;&#10; 4. Ves a &quot;Keys and Access Tokens&quot; i obtindras la:&#10;        Consumer key i consumer Secret &#10; 5. Cal fer &quot;create my access token&quot;  i copiar el valors aqui " />
+      <TextField fx:id="ConsumerKey" layoutX="229.0" layoutY="61.0" onAction="#ck" prefHeight="25.0" prefWidth="573.0" />
+      <TextField fx:id="ConsumerSecret" layoutX="229.0" layoutY="97.0" onAction="#cs" prefHeight="25.0" prefWidth="573.0" />
+      <TextField fx:id="AccessToken" layoutX="229.0" layoutY="134.0" onAction="#at" prefHeight="25.0" prefWidth="573.0" />
+      <TextField fx:id="AccessTokenSecret" layoutX="229.0" layoutY="172.0" onAction="#as" prefHeight="25.0" prefWidth="573.0" />
+      <Button fx:id="guardarConf" layoutX="269.0" layoutY="434.0" mnemonicParsing="false" onAction="#guarda" text="Guardar" />
+   </children>
+</AnchorPane>
