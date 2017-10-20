@@ -20,9 +20,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.commons.lang.StringEscapeUtils;
 
-import twitter4j.IDs;
+
 import twitter4j.PagableResponseList;
 import twitter4j.Query;
 import twitter4j.QueryResult;
@@ -57,7 +56,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 /**
  *
  * @author joan
@@ -69,9 +69,9 @@ public class FXMLvista_generalController implements Initializable {
     private HashMap<String, User> users;
     private HashMap<Long, String> userMap;
     private HashMap<String, HashMap<String, Integer>> userMent;
-    private HashMap<Long, LinkedList<String>> tweetMent;
+    private HashMap<Long, HashSet<String>> tweetMent;
     private HashMap<String, LinkedList<String>> userFollows; // from user screenName to user screenName
-    private HashMap<String, LinkedList<Long>> retweets; // from user to tweet
+    private HashMap<String, HashSet<Long>> retweets; // from user to tweet
     private long maxID;
     public static String propsFile;
     final public static Properties PROPERTIES = new Properties();
@@ -168,17 +168,7 @@ public class FXMLvista_generalController implements Initializable {
 
             try {
                 twitter = new TwitterFactory(cb.build()).getInstance();
-                limit = twitter.getRateLimitStatus().get("/search/tweets").getLimit();
-             } catch (TwitterException te) {
-                Alert alert = new Alert(AlertType.ERROR);
-                alert.setTitle("Twitter error");
-                alert.setContentText("Error de connexió amb rate limit " + limit
-                        + "reset en: " + secs + "sense connexió comprova el fitxer ");
-                alert.setResizable(true);
-                alert.getDialogPane().setPrefSize(680, 100);
-                alert.showAndWait();
-                return;
-            } catch (Exception te) {
+             } catch (Exception te) {
                 Alert alert = new Alert(AlertType.ERROR);
                 alert.setTitle("Twitter error");
                 alert.setContentText("Error de connexió  " + te.getMessage());
@@ -404,9 +394,9 @@ public class FXMLvista_generalController implements Initializable {
 
                 }
             }
-            } catch (Exception e){
+            } catch (TwitterException | NumberFormatException e){
                 e.printStackTrace();
-            }
+            } 
            processa.setDisable(false);
             return true;
         }
@@ -632,7 +622,7 @@ public class FXMLvista_generalController implements Initializable {
             }
            
           }
-          } catch (Exception e) {
+          } catch (TwitterException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -744,7 +734,7 @@ public class FXMLvista_generalController implements Initializable {
                             + "," + lng + "," + tweet.getRetweetCount() + "," + tweet.getFavoriteCount() + ","
                             + tweet.getLang() + ",";
                     if (Tsenser.isSelected()) {
-                        line += StringEscapeUtils.escapeCsv(tweet.getText().replaceAll("(\\r|\\n)", " "));
+                        line += StringEscapeUtils.escapeCsv(tweet.getText().replaceAll("(\\r|\\n|\")", " "));
                     }
                 } else {
                     line = id + "," + id + ",tweet,0,,,,,,";
@@ -811,8 +801,10 @@ public class FXMLvista_generalController implements Initializable {
 		}
              */
             for (Long tweet : tweetMent.keySet()) {
-                LinkedList<String> list = tweetMent.get(tweet);
+                Set<String> list = tweetMent.get(tweet);
                 for (String m : list) {
+                    // avoid users metioning themselves
+                    if (null !=tweets.get(tweet) && tweets.get(tweet).getUser().getScreenName().equals(m)) continue;
                     String line = tweet + ",@" + m + ",1.0,true,mention,1.0";
                     f0.write(line + newLine);
                 }
@@ -826,9 +818,10 @@ public class FXMLvista_generalController implements Initializable {
             }
 
             for (String user : retweets.keySet()) {
-                LinkedList<Long> list = retweets.get(user);
+                HashSet<Long> list = retweets.get(user);
                 for (Long t : list) {
-                    String line = "@" + user + ", " + t + ",1.0,true,retweet,1.0" ;
+                     if (tweets.get(t) !=null && tweets.get(t).getUser().getScreenName().equals(user)) continue;
+                     String line = "@" + user + ", " + t + ",1.0,true,retweet,1.0" ;
                     f0.write(line + newLine);
                 }
             }
@@ -955,7 +948,7 @@ public class FXMLvista_generalController implements Initializable {
                         if (retweets.containsKey(uId)){
                             retweets.get(uId).add(rtId);
                          } else { 
-                             LinkedList<Long> rts= new LinkedList<>();
+                             HashSet<Long> rts= new HashSet<>();
                               rts.add(rtId) ;                              
                              retweets.put(uId, rts);
                               users.put(uId, user);
@@ -981,7 +974,7 @@ public class FXMLvista_generalController implements Initializable {
 
         users.put(id, tweet.getUser());
         HashMap<String, Integer> ments;
-        LinkedList<String> ments2 = new LinkedList<>();
+        HashSet<String> ments2 = new HashSet<>();
         if (!userMent.containsKey(id)) {
             ments = new HashMap<>();
         } else {
@@ -989,12 +982,16 @@ public class FXMLvista_generalController implements Initializable {
         }
         String reply = tweet.getInReplyToScreenName();
         if (reply != null) {
-            if (!users.containsKey(reply)) {
+            
+            if (!users.containsKey(reply)) try {
                 // shall we look for user info?
-                User user = twitter.showUser(reply);
+                User user = twitter.showUser("@"+reply);
                 users.put(reply, user);
                 // it was null
                 //users.put(reply,null);
+            } catch (Exception e){
+                System.out.println("exception....!!"+reply);
+                e.printStackTrace();
             }
             ments2.add(reply);
             if (!ments.containsKey(reply)) {
@@ -1009,17 +1006,23 @@ public class FXMLvista_generalController implements Initializable {
         for (UserMentionEntity mention : mentions) {
             reply = mention.getScreenName();
             ments2.add(reply);
+            try{
             if (!users.containsKey(reply)) {
-                User user = twitter.showUser(reply);
+                User user = twitter.showUser("@"+reply);
                 users.put(reply, user);
-                //users.put(reply,null);
+                //System.out.println(reply+"reply correct \n ");
             }
-            if (!ments.containsKey(reply)) {
+           if (!ments.containsKey(reply)) {
                 ments.put(reply, 1);
             } else {
                 int tmp = ments.get(reply) + 1;
                 ments.put(reply, tmp);
             }
+            } catch (Exception e){
+                System.out.println("exception....finding metion reply!!"+reply);
+                e.printStackTrace();
+            }
+ 
         }
         userMent.put(id, ments);
         tweetMent.put(tweet.getId(), ments2);
@@ -1035,6 +1038,7 @@ public class FXMLvista_generalController implements Initializable {
         Matcher m = p.matcher("");
 
         for (String token : tokens) {
+            token=StringUtils.stripAccents(token.toLowerCase());
             if (m.reset(token).matches()) {
                 Set<Long> s;
                 if (words.containsKey(token)) {
