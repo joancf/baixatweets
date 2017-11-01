@@ -59,7 +59,8 @@ public class ProcessStats implements Serializable {
          // Serialize the original class object
         try {
             this.savedStatus=status;
-            FileOutputStream fo = new FileOutputStream("btwts.tmp");
+            String homeDir = System.getProperty("user.home"); 
+            FileOutputStream fo = new FileOutputStream(homeDir +"/btwts.tmp");
             ObjectOutputStream so = new ObjectOutputStream(fo);
             so.writeObject(this);
             so.flush();
@@ -75,8 +76,8 @@ public class ProcessStats implements Serializable {
        public ProcessStats restore_status() throws Exception {
   
         // Deserialize in to new class object
-        
-            FileInputStream fi = new FileInputStream("btwts.tmp");
+            String homeDir = System.getProperty("user.home");
+            FileInputStream fi = new FileInputStream(homeDir +"/btwts.tmp");
             ObjectInputStream si = new ObjectInputStream(fi);
             ProcessStats  stat = (ProcessStats) si.readObject();
             si.close();
