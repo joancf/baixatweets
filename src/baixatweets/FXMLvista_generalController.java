@@ -419,7 +419,7 @@ public class FXMLvista_generalController implements Initializable {
 
                 }
             }
-            } catch (TwitterException | NumberFormatException e){
+            } catch (Exception e){
                 e.printStackTrace();
             } 
            processa.setDisable(false);
@@ -1040,7 +1040,7 @@ public class FXMLvista_generalController implements Initializable {
             serachTweetsRateLimit = r.getRateLimitStatus();
             if (serachTweetsRateLimit.getRemaining() < 1) {
                 final String txt = "rate limit esgotat " + serachTweetsRateLimit.getRemaining()
-                        + " reset en: " + serachTweetsRateLimit.getSecondsUntilReset() + "segons, \n espera o si fas cancel grabarà el que ha fet fins ara";
+                        + " reset en: " + serachTweetsRateLimit.getSecondsUntilReset() + "segons, \n espera o si fas atura grabarà el que ha fet fins ara";
                 Platform.runLater(() -> {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Twitter error2");
@@ -1050,6 +1050,7 @@ public class FXMLvista_generalController implements Initializable {
                     alert.showAndWait();
                 });
                 int reset = r.getRateLimitStatus().getSecondsUntilReset();
+                reset+=2;
                	while (reset >0 && !stat.isCancelled){
                         processor.changeMessage("guardats: "  + stat.llegits + " quota esgotada"
                                 + " segons fins a resset:" + reset);
@@ -1058,7 +1059,7 @@ public class FXMLvista_generalController implements Initializable {
                        } catch (InterruptedException ie) {
                            //Don't worry about it.
                        } 
-                      reset = twitter.getRateLimitStatus().get("/search/tweets").getSecondsUntilReset();
+                      reset-=2;
                  }
             } else {
                 processor.changeMessage("guardats: "  + stat.llegits + " quota disponible:" + serachTweetsRateLimit.getRemaining() * 100
