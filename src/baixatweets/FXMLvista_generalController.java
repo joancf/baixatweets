@@ -155,6 +155,7 @@ public class FXMLvista_generalController implements Initializable {
         XarxaUsuaris.setSelected(stat.XarxaUsuarisVal );
         follow.setSelected(stat.followVal);
         query.setText(stat.queryText);
+        // TODO nRows.valueFactoryProperty().setValue(stat.nRowVal);
         processor = new Continue();
         cancela.setSelected(false);
         lblProcessant.textProperty().bind(processor.messageProperty());   
@@ -352,10 +353,7 @@ public class FXMLvista_generalController implements Initializable {
                 }
 
                 SaveUsers();
-               if(stat.isCancelled){   
-                      System.exit(1);
-               }
-                // ((Node)(event.getSource())).getScene().getWindow().hide();
+                 // ((Node)(event.getSource())).getScene().getWindow().hide();
 
             } else {
                 int limit =  twitter.getRateLimitStatus().get("/search/tweets").getRemaining();
@@ -438,10 +436,10 @@ public class FXMLvista_generalController implements Initializable {
            // For each user find to whom is following take no more than 100 people
             // extract the set because new stat.users will be appended during opperation
              for (User usuari : usersD){
+                stat.current=usuari.getScreenName(); 
                 consulta_following (usuari,MAX_FOLLOWERS);
                 if (stat.isCancelled){
-                stat.current=usuari.getScreenName(); 
-                stat.saveStauts("stat.following"); 
+                  stat.saveStauts("stat.following"); 
                 break;
                 }
             }
@@ -468,9 +466,9 @@ public class FXMLvista_generalController implements Initializable {
                      if (stat.current.equals(usuari.getScreenName())) skip=false;
                      else continue;
                  }
+                 stat.current=usuari.getScreenName(); 
                 consulta_following (usuari,MAX_FOLLOWERS);
                 if (stat.isCancelled) {
-                stat.current=usuari.getScreenName(); 
                 stat.saveStauts("stat.following");                     
                 break;
                 }
@@ -506,9 +504,9 @@ public class FXMLvista_generalController implements Initializable {
                      if (stat.current.equals(follower.getScreenName())) skip=false;
                      else continue;
                  }
-                 consulta_followers(follower, MAX_FOLLOWERS);
+               stat.current=follower.getScreenName(); 
+               consulta_followers(follower, MAX_FOLLOWERS);
                 if(stat.isCancelled){
-                    stat.current=follower.getScreenName(); 
                     stat.saveStauts("stat.followers");
                     break;
                  }
@@ -613,10 +611,10 @@ public class FXMLvista_generalController implements Initializable {
             return false;
        }
         for (User follower : stat.followers) {
-            segueix = consulta_followers(follower, selection);
+          stat.current=follower.getScreenName(); 
+          segueix = consulta_followers(follower, selection);
             if(stat.isCancelled){
-                stat.current=follower.getScreenName(); 
-                stat.saveStauts("stat.followers");
+                 stat.saveStauts("stat.followers");
                 return false;
             }
         }
@@ -637,11 +635,12 @@ public class FXMLvista_generalController implements Initializable {
                 RateLimitStatus rateLimit = limits.get("/followers/list");
                 if (rateLimit.getRemaining() < 1) {
                     int waiting = rateLimit.getSecondsUntilReset();
-                    if (waiting>0){ 
+                    if (waiting>0){
+                    stat.saveStauts("stat.followers");
                     waiting++; // add a second for security
                     long s = Instant.now().getEpochSecond()+waiting;
                     while (s > Instant.now().getEpochSecond()){
-                        processor.changeMessage("consulta veins " + user.getScreenName() + " (" + stat.llegits + " de " + user.getFollowersCount() +")  esperant: " + waiting);
+                        processor.changeMessage("consulta seguidors " + user.getScreenName() + " amb  "+  user.getFollowersCount()+" seguidors ( total seguidors llegits: " + stat.llegits  +"). Programa aturat durant: " + waiting+ " segons");
                         try {
                            Thread.sleep(2000);
                        } catch (InterruptedException ie) {
@@ -657,6 +656,10 @@ public class FXMLvista_generalController implements Initializable {
                     if (!segueix) {
                         break;
                     }
+                       try {
+                           Thread.sleep(10000); // dona temps després d'una pausa  a que es reconecti la màquina
+                       } catch (InterruptedException ie) {//Don't worry about it.
+                       } 
                 }
                 PagableResponseList<User> idsData = twitter.getFollowersList(user.getId(), cursor);
                 cursor = idsData.getNextCursor();
@@ -712,29 +715,31 @@ public class FXMLvista_generalController implements Initializable {
                     if (waiting>0) {
                         waiting++; // add a second for security
                         long s = Instant.now().getEpochSecond()+waiting;
-                    while (s > Instant.now().getEpochSecond()) {
-                        processor.changeMessage("consulta veins " +usuari + " (" + stat.llegits + ") waiting  " + waiting);
-                        try {
-                           Thread.sleep(2000);
-                       } catch (InterruptedException ie) {
-                           //Don't worry about it.
-                       } 
-                         waiting -= 2;
-                        if (stat.isCancelled) {
-                            segueix = false;
-                            break;
+                        // save status
+                        stat.saveStauts("stat.following"); 
+                        while (s > Instant.now().getEpochSecond()) {
+                            processor.changeMessage("consulta veins " +usuari + " (" + stat.llegits + ") waiting  " + waiting);
+                            try {
+                               Thread.sleep(2000);
+                           } catch (InterruptedException ie) {
+                               //Don't worry about it.
+                           } 
+                             waiting -= 2;
+                            if (stat.isCancelled) {
+                                segueix = false;
+                                break;
+                            }
                         }
                     }
-                         try {
-                           Thread.sleep(2000);
-                       } catch (InterruptedException ie) {
-                           //Don't worry about it.
-                       } 
-                     }
                     if (!segueix) {
                         break;
                     }
-                }
+                        try {
+                          Thread.sleep(10000);
+                      } catch (InterruptedException ie) {
+                          //Don't worry about it.
+                      } 
+               }
                 PagableResponseList<User> friendsData = twitter.getFriendsList(user.getId(), cursor);
                 cursor = friendsData.getNextCursor();
                 friends.addAll(friendsData);
@@ -848,11 +853,14 @@ public class FXMLvista_generalController implements Initializable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        if(stat.isCancelled){   
+                System.exit(1);
+         }
+
         });
     }
 
     protected void SaveTweets() {
-        File selected;
         Platform.runLater(() -> {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("guarda fitxer");
@@ -1015,6 +1023,10 @@ public class FXMLvista_generalController implements Initializable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        if(stat.isCancelled){   
+                System.exit(1);
+         }
+
         });
     }
 
@@ -1067,45 +1079,7 @@ public class FXMLvista_generalController implements Initializable {
 
             }
         } while ((query = r.nextQuery()) != null && stat.llegits < LIMIT && ! stat.isCancelled);
-        
-        // find the original stat.tweets of the stat.retweets nd reply
-        // TODO it needs to be checked as duplicate stat.tweets appear.
-        /* 
-		HashMap<Long,Status> extraTweets=new  HashMap<Long,Status>();
 
-		processat.setText(count +"("+stat.llegits+") expansió ids");
-		
-		for (Long id : stat.tweets.keySet()) {
-		    Status  tweet=  stat.tweets.get(id);
-		    if (tweet==null && extraTweets.get(id)==null){ 
-		    	// try to get the tweet
-		    		Status newTweet=twitter.showStatus(id);
-		    	    if (newTweet  != null) {
-		    	    	extraTweets.put(id,newTweet);
-		    	       if (usuaris.isSelected() ) putUsers(newTweet);
-		    	    }
-		     } else	if (tweet.getRetweetedStatus()!=null){
-		    		long rId=tweet.getRetweetedStatus().getId();
-		    		if (extraTweets.get(rId)==null && stat.tweets.get(rId)==null){
-		    			Status newTweet=twitter.showStatus(rId);
-		    			if (newTweet  != null){ 
-		    				extraTweets.put(id,newTweet);
-			    	       if (usuaris.isSelected() ) putUsers(newTweet);
-		    			}
-		    		}
-		     } else	if (tweet.getInReplyToStatusId()==0){
-		    		long rId=tweet.getInReplyToStatusId();
-		    		if (extraTweets.get(rId)==null && stat.tweets.get(rId)==null){
-		    			Status newTweet=twitter.showStatus(rId);
-		    			if (newTweet  != null) {
-		    				extraTweets.put(id,newTweet);
-		    				if (usuaris.isSelected() ) putUsers(newTweet);
-		    			}
-			    	}
-		     }	    		
-		}
-        stat.tweets.putAll(extraTweets);
-         */
     }
 
     private void addTweet(Status tweet) throws TwitterException {
@@ -1118,8 +1092,9 @@ public class FXMLvista_generalController implements Initializable {
                     skip=true;
                  } else {
                      tweet = tweet.getRetweetedStatus();
-                  // add retweet from author to tweet 
-                    if (usuaris.isSelected()) {
+                 }
+                 // add retweet from author to tweet 
+                  if (usuaris.isSelected()) {
                         if (stat.retweets.containsKey(uId)){
                             stat.retweets.get(uId).add(rtId);
                          } else { 
@@ -1129,8 +1104,7 @@ public class FXMLvista_generalController implements Initializable {
                               stat.users.put(uId, user);
                          }
                      }
-                 }  
-             }
+              }
              if (!skip) {
              stat.tweets.put(tweet.getId(), tweet);
              if (paraules.isSelected()) {
